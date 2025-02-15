@@ -10,6 +10,7 @@ import os
 from collections import namedtuple
 # from torch._six import queue
 from torch.multiprocessing import Queue as queue
+from Queue import Empty
 from torch._utils import ExceptionWrapper
 from torch.utils.data._utils import (
     signal_handling,
@@ -194,7 +195,7 @@ def worker_loop(
         while watchdog.is_alive():
             try:
                 r = index_queue.get(timeout=MP_STATUS_CHECK_INTERVAL)
-            except queue.Empty:
+            except Empty:
                 continue
             if r is None:
                 # Received the final signal

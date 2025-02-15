@@ -16,13 +16,13 @@ from ofa.imagenet_classification.elastic_nn.modules.dynamic_op import (
 from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3
 from ofa.imagenet_classification.run_manager import DistributedImageNetRunConfig
 from ofa.imagenet_classification.networks import MobileNetV3Large
-from ofa.imagenet_classification.run_manager.distributed_run_manager import (
-    DistributedRunManager,
-)
+from ofa.imagenet_classification.run_manager.distributed_run_manager import DistributedRunManager
+from ofa.imagenet_classification.data_providers.imagenet import ImagenetDataProvider
 from ofa.utils import download_url, MyRandomResizedCrop
 from ofa.imagenet_classification.elastic_nn.training.progressive_shrinking import (
     load_models,
 )
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -37,6 +37,8 @@ parser.add_argument(
 )
 parser.add_argument("--phase", type=int, default=1, choices=[1, 2])
 parser.add_argument("--resume", action="store_true")
+parser.add_argument("--path", default="/dataset/imagenet")
+parser.add_argument("--n_worker", type=int, default=8)
 
 args = parser.parse_args()
 if args.task == "kernel":
@@ -108,7 +110,6 @@ args.model_init = "he_fout"
 args.validation_frequency = 1
 args.print_frequency = 10
 
-args.n_worker = 8
 args.resize_scale = 0.08
 args.distort_color = "tf"
 args.image_size = "128,160,192,224"
