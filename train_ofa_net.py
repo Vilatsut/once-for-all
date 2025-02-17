@@ -37,10 +37,13 @@ parser.add_argument(
 )
 parser.add_argument("--phase", type=int, default=1, choices=[1, 2])
 parser.add_argument("--resume", action="store_true")
-parser.add_argument("--path", default="/dataset/imagenet")
+parser.add_argument("--data_path", default="/dataset/imagenet")
 parser.add_argument("--n_worker", type=int, default=8)
 
 args = parser.parse_args()
+
+ImagenetDataProvider.DEFAULT_PATH = args.data_path
+
 if args.task == "kernel":
     args.path = "exp/normal2kernel"
     args.dynamic_batch_size = 1
