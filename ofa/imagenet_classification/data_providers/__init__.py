@@ -3,4 +3,4 @@
 # International Conference on Learning Representations (ICLR), 2020.
 
 from .imagenet import *
-from .aurora import AuroraDataProvider
+from .aurora import AuroraDataProvider, AuroraDataset

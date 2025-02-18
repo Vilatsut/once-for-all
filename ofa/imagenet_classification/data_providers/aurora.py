@@ -4,13 +4,11 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
-
 from .base_provider import DataProvider
 from ofa.utils.my_dataloader import MyRandomResizedCrop, MyDistributedSampler
 from ofa.utils.my_dataloader.my_data_loader import MyDataLoader
 
-__all__ = ["ImagenetDataProvider"]
-
+__all__ = ["AuroraDataProvider"]
 
 class AuroraDataProvider(DataProvider):
     DEFAULT_PATH = "/home/vilatsut/Desktop/archive"
@@ -42,7 +40,6 @@ class AuroraDataProvider(DataProvider):
         self._valid_transform_dict = {}
 
         if isinstance(self.image_size, list):
-
             self.image_size.sort()
             MyRandomResizedCrop.IMAGE_SIZE_LIST = self.image_size.copy()
             MyRandomResizedCrop.ACTIVE_SIZE = max(self.image_size)
@@ -61,7 +58,6 @@ class AuroraDataProvider(DataProvider):
 
         train_transforms = self.build_train_transform(image_size=image_size)
 
-
         train_dataset = AuroraDataset(
             root=self.data_path,
             transform=train_transforms,
@@ -70,14 +66,19 @@ class AuroraDataProvider(DataProvider):
             valid_size=valid_size,
             random_seed=seed
         )
-        valid_dataset = AuroraDataset(
-            root=self.data_path,
-            transform=valid_transforms,
-            split="val",
-            test_size=test_size,
-            valid_size=valid_size,
-            random_seed=seed
-        )
+
+        if valid_size is not None:
+            valid_dataset = AuroraDataset(
+                root=self.data_path,
+                transform=valid_transforms,
+                split="val",
+                test_size=test_size,
+                valid_size=valid_size,
+                random_seed=seed
+            )
+        else:
+            valid_dataset = None
+
         test_dataset = AuroraDataset(
             root=self.data_path,
             transform=valid_transforms,
@@ -91,16 +92,22 @@ class AuroraDataProvider(DataProvider):
             train_sampler = DistributedSampler(
                 train_dataset, num_replicas, rank, True
             )
-            valid_sampler = DistributedSampler(
-                valid_dataset, num_replicas, rank, True
-            )
             test_sampler = DistributedSampler(
                 test_dataset, num_replicas, rank, True
             )
+            if valid_dataset is not None:
+                valid_sampler = DistributedSampler(
+                    valid_dataset, num_replicas, rank, True
+                )
+            else:
+                valid_sampler = None
         else:
             train_sampler = RandomSampler(train_dataset)
-            valid_sampler = RandomSampler(valid_dataset)
-            test_sampler = RandomSampler(test_dataset)            
+            test_sampler = RandomSampler(test_dataset)
+            if valid_dataset is not None:
+                valid_sampler = RandomSampler(valid_dataset)
+            else:
+                valid_sampler = None
 
         self.train = train_loader_class(
             train_dataset,
@@ -109,13 +116,18 @@ class AuroraDataProvider(DataProvider):
             num_workers=n_worker,
             pin_memory=True,
         )
-        self.valid = DataLoader(
-            valid_dataset,
-            batch_size=test_batch_size,
-            sampler=valid_sampler,
-            num_workers=n_worker,
-            pin_memory=True,
-        )
+
+        if valid_dataset is not None:
+            self.valid = DataLoader(
+                valid_dataset,
+                batch_size=test_batch_size,
+                sampler=valid_sampler,
+                num_workers=n_worker,
+                pin_memory=True,
+            )
+        else:
+            self.valid = None
+
         self.test = DataLoader(
             test_dataset,
             batch_size=test_batch_size,
@@ -123,6 +135,8 @@ class AuroraDataProvider(DataProvider):
             num_workers=n_worker,
             pin_memory=True
         )
+        if self.valid is None:
+            self.valid = self.test
 
     @staticmethod
     def name():
@@ -131,6 +145,7 @@ class AuroraDataProvider(DataProvider):
     @property
     def data_shape(self):
         return 3, self.active_img_size, self.active_img_size  # C, H, W
+
     @property
     def n_classes(self):
         return 2
@@ -240,15 +255,18 @@ class AuroraDataset(datasets.VisionDataset):
             self.data, self.targets, test_size=test_size, stratify=self.targets, random_state=random_seed
         )
 
-        # Split train further into train and validation
-        train_data, val_data, train_targets, val_targets = train_test_split(
-            train_data, train_targets, test_size=valid_size, stratify=train_targets, random_state=random_seed
-        )
+        if valid_size is not None:
+            # Split train further into train and validation
+            train_data, val_data, train_targets, val_targets = train_test_split(
+                train_data, train_targets, test_size=valid_size, stratify=train_targets, random_state=random_seed
+            )
 
         # Assign data based on requested split
         if split == "train":
             self.data, self.targets = train_data, train_targets
         elif split == "val":
+            if valid_size is None:
+                raise ValueError("Validation split requested but valid_size is None")
             self.data, self.targets = val_data, val_targets
         else:
             self.data, self.targets = test_data, test_targets
@@ -312,4 +330,3 @@ class AuroraDataset(datasets.VisionDataset):
 
     def __len__(self) -> int:
         return len(self.data)
-
