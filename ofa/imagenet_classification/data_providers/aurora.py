@@ -2,7 +2,7 @@ import math
 
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
+from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, SubsetRandomSampler
 
 from .base_provider import DataProvider
 from ofa.utils.my_dataloader import MyRandomResizedCrop, MyDistributedSampler
@@ -162,7 +162,7 @@ class AuroraDataProvider(DataProvider):
     def data_url(self):
         raise ValueError("unable to download %s" % self.name())
 
-    def build_train_transform(self, image_size=None, print_log=True):
+    def build_train_transform(self, image_size=None):
         if image_size is None:
             image_size = self.active_img_size
         
@@ -203,7 +203,61 @@ class AuroraDataProvider(DataProvider):
             transforms.ConvertImageDtype(torch.float32),
             transforms.Normalize(self.dataset_mean, self.dataset_std)
         ])
+        
+    def assign_active_img_size(self, new_img_size):
+        self.active_img_size = new_img_size
+        if self.active_img_size not in self._valid_transform_dict:
+            self._valid_transform_dict[
+                self.active_img_size
+            ] = self.build_valid_transform()
+        # change the transform of the valid and test set
+        self.valid.dataset.transform = self._valid_transform_dict[self.active_img_size]
+        self.test.dataset.transform = self._valid_transform_dict[self.active_img_size]
 
+    def build_sub_train_loader(
+        self, n_images, batch_size, num_worker=None, num_replicas=None, rank=None
+    ):
+        # used for resetting BN running statistics
+        if self.__dict__.get("sub_train_%d" % self.active_img_size, None) is None:
+            if num_worker is None:
+                num_worker = self.train.num_workers
+
+            n_samples = len(self.train.dataset)
+            g = torch.Generator()
+            g.manual_seed(DataProvider.SUB_SEED)
+            rand_indexes = torch.randperm(n_samples, generator=g).tolist()
+            chosen_indexes = rand_indexes[:n_images]
+
+            new_train_dataset = self.train_dataset(
+                self.build_train_transform(
+                    image_size=self.active_img_size
+                )
+            )
+            if num_replicas is not None:
+                sub_sampler = MyDistributedSampler(
+                    new_train_dataset,
+                    num_replicas,
+                    rank,
+                    True,
+                    np.array(chosen_indexes),
+                )
+            else:
+                sub_sampler = SubsetRandomSampler(chosen_indexes)
+
+            sub_data_loader = DataLoader(
+                new_train_dataset,
+                batch_size=batch_size,
+                sampler=sub_sampler,
+                num_workers=num_worker,
+                pin_memory=True,
+            )
+            
+            self.__dict__["sub_train_%d" % self.active_img_size] = []
+            for images, labels in sub_data_loader:
+                self.__dict__["sub_train_%d" % self.active_img_size].append(
+                    (images, labels)
+                )
+        return self.__dict__["sub_train_%d" % self.active_img_size]
 
 
 from sklearn.model_selection import train_test_split
