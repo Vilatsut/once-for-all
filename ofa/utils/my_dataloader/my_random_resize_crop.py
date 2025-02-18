@@ -36,7 +36,7 @@ class MyRandomResizedCrop(transforms.RandomResizedCrop):
         size,
         scale=(0.08, 1.0),
         ratio=(3.0 / 4.0, 4.0 / 3.0),
-        interpolation=Image.BILINEAR,
+        interpolation=InterpolationMode.BILINEAR,
     ):
         if not isinstance(size, int):
             size = size[0]
@@ -99,7 +99,7 @@ class MyRandomResizedCrop(transforms.RandomResizedCrop):
 class MyResizeRandomCrop(object):
     def __init__(
         self,
-        interpolation=Image.BILINEAR,
+        interpolation=InterpolationMode.BILINEAR,
         use_padding=False,
         pad_if_needed=False,
         fill=0,

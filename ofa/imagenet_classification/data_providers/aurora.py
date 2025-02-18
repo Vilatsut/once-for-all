@@ -1,22 +1,27 @@
+import math
 
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
 
-from base_provider import DataProvider
+from .base_provider import DataProvider
+from ofa.utils.my_dataloader import MyRandomResizedCrop, MyDistributedSampler
+from ofa.utils.my_dataloader.my_data_loader import MyDataLoader
 
 __all__ = ["ImagenetDataProvider"]
 
 
 class AuroraDataProvider(DataProvider):
-    DEFAULT_PATH = "/dataset/imagenet"
+    DEFAULT_PATH = "/home/vilatsut/Desktop/archive"
 
     def __init__(
         self,
-        save_path=None,
+        data_path=None,
         train_batch_size=256,
         test_batch_size=256,
         valid_size=None,
+        test_size=0.2,
         n_worker=32,
         resize_scale=0.08,
         distort_color=None,
@@ -25,7 +30,7 @@ class AuroraDataProvider(DataProvider):
         rank=None,
         seed=42
     ):
-        self._save_path = save_path
+        self._data_path = data_path
 
         self.image_size = image_size  # int or list of int    
         self.distort_color = "None" if distort_color is None else distort_color
@@ -36,20 +41,87 @@ class AuroraDataProvider(DataProvider):
 
         self._valid_transform_dict = {}
 
+        if isinstance(self.image_size, list):
+
+            self.image_size.sort()
+            MyRandomResizedCrop.IMAGE_SIZE_LIST = self.image_size.copy()
+            MyRandomResizedCrop.ACTIVE_SIZE = max(self.image_size)
+
+            for img_size in self.image_size:
+                self._valid_transform_dict[img_size] = self.build_valid_transform(
+                    img_size
+                )
+            self.active_img_size = max(self.image_size)
+            valid_transforms = self._valid_transform_dict[self.active_img_size]
+            train_loader_class = MyDataLoader # randomly sample image size for each batch of training image
+        else:
+            self.active_img_size = self.image_size
+            valid_transforms = self.build_valid_transform()
+            train_loader_class = torch.utils.data.DataLoader
+
+        train_transforms = self.build_train_transform(image_size=image_size)
+
+
         train_dataset = AuroraDataset(
-            root=data_dir,
+            root=self.data_path,
             transform=train_transforms,
-            download=True,
             split="train",
-            test_size=0.2,  # 20% of the data is used for testing
+            test_size=test_size,  # 20% of the data is used for testing
+            valid_size=valid_size,
+            random_seed=seed
+        )
+        valid_dataset = AuroraDataset(
+            root=self.data_path,
+            transform=valid_transforms,
+            split="val",
+            test_size=test_size,
+            valid_size=valid_size,
             random_seed=seed
         )
         test_dataset = AuroraDataset(
-            root=data_dir,
-            transform=test_transforms,
+            root=self.data_path,
+            transform=valid_transforms,
             split="test",
-            test_size=0.2,
+            test_size=test_size,
+            valid_size=valid_size,
             random_seed=seed
+        )
+
+        if num_replicas is not None:
+            train_sampler = DistributedSampler(
+                train_dataset, num_replicas, rank, True
+            )
+            valid_sampler = DistributedSampler(
+                valid_dataset, num_replicas, rank, True
+            )
+            test_sampler = DistributedSampler(
+                test_dataset, num_replicas, rank, True
+            )
+        else:
+            train_sampler = RandomSampler(train_dataset)
+            valid_sampler = RandomSampler(valid_dataset)
+            test_sampler = RandomSampler(test_dataset)            
+
+        self.train = train_loader_class(
+            train_dataset,
+            batch_size=train_batch_size,
+            sampler=train_sampler,
+            num_workers=n_worker,
+            pin_memory=True,
+        )
+        self.valid = DataLoader(
+            valid_dataset,
+            batch_size=test_batch_size,
+            sampler=valid_sampler,
+            num_workers=n_worker,
+            pin_memory=True,
+        )
+        self.test = DataLoader(
+            test_dataset,
+            batch_size=test_batch_size,
+            sampler=test_sampler,
+            num_workers=n_worker,
+            pin_memory=True
         )
 
     @staticmethod
@@ -64,49 +136,56 @@ class AuroraDataProvider(DataProvider):
         return 2
 
     @property
-    def save_path(self):
-        if self._save_path is None:
-            self._save_path = self.DEFAULT_PATH
-            if not os.path.exists(self._save_path):
-                self._save_path = os.path.expanduser("~/dataset/imagenet")
-        return self._save_path
+    def data_path(self):
+        if self._data_path is None:
+            self._data_path = self.DEFAULT_PATH
+            if not os.path.exists(self._data_path):
+                self._data_path = os.path.expanduser("~/aurora")
+        return self._data_path
 
     @property
     def data_url(self):
         raise ValueError("unable to download %s" % self.name())
 
-    def train_dataset(self, _transforms):
-        return datasets.ImageFolder(self.train_path, _transforms)
-
-    def test_dataset(self, _transforms):
-        return datasets.ImageFolder(self.valid_path, _transforms)
-
-    @property
-    def train_path(self):
-        return os.path.join(self.save_path, "train")
-
-    @property
-    def valid_path(self):
-        return os.path.join(self.save_path, "val")
-
-
     def build_train_transform(self, image_size=None, print_log=True):
-        return transforms.Compose([
-                transforms.PILToTensor(),
-                transforms.ToDtype(torch.uint8, scale=True),
-                transforms.Resize(image_size),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomRotation(10),
-                transforms.ToDtype(torch.float32, scale=True),
-                transforms.Normalize(self.dataset_mean, self.dataset_std)
-            ])
+        if image_size is None:
+            image_size = self.active_img_size
+        
+        if isinstance(image_size, list):
+            resize_transform_class = MyRandomResizedCrop
+        else:
+            resize_transform_class = transforms.RandomResizedCrop
+        
+        # color augmentation (optional)
+        color_transform = None
+        if self.distort_color == "torch":
+            color_transform = transforms.ColorJitter(
+                brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1
+            )
+        elif self.distort_color == "tf":
+            color_transform = transforms.ColorJitter(
+                brightness=32.0 / 255.0, saturation=0.5
+            )
 
-    def build_valid_transform(self, image_size=None):
         return transforms.Compose([
             transforms.PILToTensor(),
-            transforms.ToDtype(torch.uint8, scale=True),
-            transforms.Resize(image_size),
-            transforms.ToDtype(torch.float32, scale=True),
+            transforms.ConvertImageDtype(torch.uint8),
+            resize_transform_class(image_size, scale=(self.resize_scale, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            color_transform,
+            transforms.ConvertImageDtype(torch.float32),
+            transforms.Normalize(self.dataset_mean, self.dataset_std)
+        ])
+
+    def build_valid_transform(self, image_size=None):
+        if image_size is None:
+            image_size = self.active_img_size
+        return transforms.Compose([
+            transforms.PILToTensor(),
+            transforms.ConvertImageDtype(torch.uint8),
+            transforms.Resize(int(math.ceil(image_size / 0.875))),
+            transforms.CenterCrop(image_size),            
+            transforms.ConvertImageDtype(torch.float32),
             transforms.Normalize(self.dataset_mean, self.dataset_std)
         ])
 
@@ -130,7 +209,7 @@ class AuroraDataset(datasets.VisionDataset):
         target_transform (callable, optional): A function/transform that takes in the target and transforms it.
         split (str, optional): One of ['train', 'val', 'test'].
         test_size (float, optional): Fraction of the dataset used for testing (default 0.2).
-        val_size (float, optional): Fraction of the training set used for validation (default 0.1).
+        valid_size (float, optional): Fraction of the training set used for validation (default 0.1).
         random_seed (int, optional): Seed for reproducibility.
     """
 
@@ -140,14 +219,17 @@ class AuroraDataset(datasets.VisionDataset):
         self,
         root: Union[str, Path],
         split: str,
+        download: Optional[bool] = False,
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
         test_size: Optional[float] = 0.2,
-        val_size: Optional[float] = 0.1,
+        valid_size: Optional[float] = 0.1,
         random_seed: Optional[int] = 101
     ) -> None:
         super().__init__(root, transform=transform, target_transform=target_transform)
 
+        if download:
+            self._download_data()
         self.data, self.targets = self._load_data()
 
         if split not in ["train", "val", "test"]:
@@ -160,7 +242,7 @@ class AuroraDataset(datasets.VisionDataset):
 
         # Split train further into train and validation
         train_data, val_data, train_targets, val_targets = train_test_split(
-            train_data, train_targets, test_size=val_size, stratify=train_targets, random_state=random_seed
+            train_data, train_targets, test_size=valid_size, stratify=train_targets, random_state=random_seed
         )
 
         # Assign data based on requested split
@@ -174,9 +256,6 @@ class AuroraDataset(datasets.VisionDataset):
     def _download_data(self) -> None:
         """
         Downloads the dataset from Kaggle and extracts it to the root directory.
-
-        Args:
-            kaggle_dataset (str): The Kaggle dataset identifier (e.g., "username/dataset-name").
         """
 
         # Set up Kaggle API and download the dataset
@@ -233,17 +312,4 @@ class AuroraDataset(datasets.VisionDataset):
 
     def __len__(self) -> int:
         return len(self.data)
-
-train_data = AuroraDataset(
-    root="/home/vilatsut/Desktop/archive", 
-    split="train"
-)
-val_data = AuroraDataset(
-    root="/home/vilatsut/Desktop/archive", 
-    split="val"
-)
-train_data = AuroraDataset(
-    root="/home/vilatsut/Desktop/archive", 
-    split="train"
-)
 
