@@ -13,6 +13,7 @@ import torch
 import torch.multiprocessing as multiprocessing
 from torch._utils import ExceptionWrapper
 from torch.multiprocessing import Queue as queue
+from queue import Empty
 from torch._six import string_classes
 from torch.utils.data.dataset import IterableDataset
 from torch.utils.data import Sampler, SequentialSampler, RandomSampler, BatchSampler
@@ -857,7 +858,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 raise RuntimeError(
                     "DataLoader worker (pid(s) {}) exited unexpectedly".format(pids_str)
                 )
-            if isinstance(e, queue.Empty):
+            if isinstance(e, Empty):
                 return (False, None)
             raise
 
