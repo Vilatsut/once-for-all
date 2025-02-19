@@ -13,11 +13,11 @@ import torch
 from ofa.imagenet_classification.elastic_nn.modules.dynamic_op import (
     DynamicSeparableConv2d,
 )
-from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3
-from ofa.imagenet_classification.run_manager import DistributedImageNetRunConfig
+from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3, OFAProxylessNASNets
+from ofa.imagenet_classification.run_manager import DistributedAuroraRunConfig
 from ofa.imagenet_classification.networks import MobileNetV3Large
 from ofa.imagenet_classification.run_manager.distributed_run_manager import DistributedRunManager
-from ofa.imagenet_classification.data_providers.imagenet import ImagenetDataProvider
+from ofa.imagenet_classification.data_providers.imagenet import AuroraDataProvider
 from ofa.utils import download_url, MyRandomResizedCrop
 from ofa.imagenet_classification.elastic_nn.training.progressive_shrinking import (
     load_models,
@@ -42,7 +42,7 @@ parser.add_argument("--n_worker", type=int, default=8)
 
 args = parser.parse_args()
 
-ImagenetDataProvider.DEFAULT_PATH = args.data_path
+AuroraDataProvider.DEFAULT_PATH = args.data_path
 
 if args.task == "kernel":
     args.path = "exp/normal2kernel"
@@ -170,7 +170,7 @@ if __name__ == "__main__":
         args.warmup_lr = args.base_lr
     args.train_batch_size = args.base_batch_size
     args.test_batch_size = args.base_batch_size * 4
-    run_config = DistributedImageNetRunConfig(
+    run_config = DistributedAuroraRunConfig(
         **args.__dict__, num_replicas=num_gpus, rank=hvd.rank()
     )
 
@@ -197,7 +197,7 @@ if __name__ == "__main__":
         if len(args.width_mult_list) == 1
         else args.width_mult_list
     )
-    net = OFAMobileNetV3(
+    net = OFAProxylessNASNets(
         n_classes=run_config.data_provider.n_classes,
         bn_param=(args.bn_momentum, args.bn_eps),
         dropout_rate=args.dropout,
