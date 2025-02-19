@@ -4,6 +4,7 @@
 
 from ofa.utils import calc_learning_rate, build_optimizer
 from ofa.imagenet_classification.data_providers import ImagenetDataProvider
+from ofa.imagenet_classification.data_providers import AuroraDataProvider
 
 __all__ = ["RunConfig", "ImagenetRunConfig", "DistributedImageNetRunConfig", "AuroraRunConfig","DistributedAuroraRunConfig"]
 
