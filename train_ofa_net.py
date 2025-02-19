@@ -39,13 +39,14 @@ parser.add_argument("--phase", type=int, default=1, choices=[1, 2])
 parser.add_argument("--resume", action="store_true")
 parser.add_argument("--data_path", default="/dataset/imagenet")
 parser.add_argument("--n_worker", type=int, default=8)
+parser.add_argument("--output_path", default="/scratch/project_2013176/exp")
 
 args = parser.parse_args()
 
 AuroraDataProvider.DEFAULT_PATH = args.data_path
 
 if args.task == "kernel":
-    args.path = "exp/normal2kernel"
+    args.path = args.output_path + "/normal2kernel"
     args.dynamic_batch_size = 1
     args.n_epochs = 120
     args.base_lr = 3e-2
@@ -55,7 +56,7 @@ if args.task == "kernel":
     args.expand_list = "6"
     args.depth_list = "4"
 elif args.task == "depth":
-    args.path = "exp/kernel2kernel_depth/phase%d" % args.phase
+    args.path = args.output_path + "/kernel2kernel_depth/phase%d" % args.phase
     args.dynamic_batch_size = 2
     if args.phase == 1:
         args.n_epochs = 25
@@ -74,7 +75,7 @@ elif args.task == "depth":
         args.expand_list = "6"
         args.depth_list = "2,3,4"
 elif args.task == "expand":
-    args.path = "exp/kernel_depth2kernel_depth_width/phase%d" % args.phase
+    args.path = args.output_path + "/kernel_depth2kernel_depth_width/phase%d" % args.phase
     args.dynamic_batch_size = 4
     if args.phase == 1:
         args.n_epochs = 25
