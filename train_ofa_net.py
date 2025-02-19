@@ -17,7 +17,7 @@ from ofa.imagenet_classification.elastic_nn.networks import OFAMobileNetV3, OFAP
 from ofa.imagenet_classification.run_manager import DistributedAuroraRunConfig
 from ofa.imagenet_classification.networks import MobileNetV3Large
 from ofa.imagenet_classification.run_manager.distributed_run_manager import DistributedRunManager
-from ofa.imagenet_classification.data_providers.imagenet import AuroraDataProvider
+from ofa.imagenet_classification.data_providers.aurora import AuroraDataProvider
 from ofa.utils import download_url, MyRandomResizedCrop
 from ofa.imagenet_classification.elastic_nn.training.progressive_shrinking import (
     load_models,
