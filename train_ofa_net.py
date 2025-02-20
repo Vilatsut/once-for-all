@@ -96,6 +96,7 @@ elif args.task == "expand":
         args.depth_list = "2,3,4"
 elif args.task == "teacher":
     args.path = args.output_path + "/teacher"
+    args.dynamic_batch_size = 1
     args.n_epochs = 120
     args.base_lr = 3e-2
     args.warmup_epochs = 5
