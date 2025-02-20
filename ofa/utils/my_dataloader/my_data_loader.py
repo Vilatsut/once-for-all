@@ -12,7 +12,7 @@ import multiprocessing as python_multiprocessing
 import torch
 import torch.multiprocessing as multiprocessing
 from torch._utils import ExceptionWrapper
-from torch.multiprocessing import Queue as queue
+#from torch.multiprocessing import Queue as MultiProcessingQueue
 from queue import Empty
 from torch._six import string_classes
 from torch.utils.data.dataset import IterableDataset
@@ -801,7 +801,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
         if self._pin_memory:
             self._pin_memory_thread_done_event = threading.Event()
-            self._data_queue = queue.Queue()
+            self._data_queue = multiprocessing_context.Queue()
             pin_memory_thread = threading.Thread(
                 target=_utils.pin_memory._pin_memory_loop,
                 args=(
