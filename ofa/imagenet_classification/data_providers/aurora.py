@@ -235,7 +235,7 @@ class AuroraDataProvider(DataProvider):
                 root=self.data_path,
                 transform=train_transforms,
                 split="train",
-                test_size=test_size,  # 20% of the data is used for testing
+                test_size=self.test_size,  # 20% of the data is used for testing
                 valid_size=self.valid_size,
                 random_seed=self.seed
             )

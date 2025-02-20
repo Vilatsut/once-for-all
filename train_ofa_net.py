@@ -93,6 +93,16 @@ elif args.task == "expand":
         args.ks_list = "3,5,7"
         args.expand_list = "3,4,6"
         args.depth_list = "2,3,4"
+elif args.task == "teacher":
+    args.path = args.output_path + "/teacher"
+    args.n_epochs = 120
+    args.base_lr = 3e-2
+    args.warmup_epochs = 5
+    args.warmup_lr = -1
+    args.ks_list = "7"
+    args.expand_list = "6"
+    args.depth_list = "4"
+
 else:
     raise NotImplementedError
 args.manual_seed = 0
