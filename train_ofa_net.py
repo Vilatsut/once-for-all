@@ -325,6 +325,17 @@ if __name__ == "__main__":
             )
         train_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
     elif args.task == "teacher":
-        pass   
+        distributed_run_manager.write_log(
+                "%.3f\t%.3f\t%.3f\t%s"
+                % validate(distributed_run_manager, is_test=True, **validate_func_dict),
+                "valid",
+            )
+        train(
+            distributed_run_manager,
+            args,
+            lambda _run_manager, epoch, is_test: validate(
+                _run_manager, epoch, is_test, **validate_func_dict   
+                )
+            )   
     else:
         raise NotImplementedError
