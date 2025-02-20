@@ -33,6 +33,7 @@ parser.add_argument(
         "kernel",
         "depth",
         "expand",
+        "teacher"
     ],
 )
 parser.add_argument("--phase", type=int, default=1, choices=[1, 2])
