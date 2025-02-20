@@ -324,5 +324,7 @@ if __name__ == "__main__":
                 model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
             )
         train_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
+    elif args.task == "teacher":
+        
     else:
         raise NotImplementedError
