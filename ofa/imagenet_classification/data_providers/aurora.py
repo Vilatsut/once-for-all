@@ -29,7 +29,9 @@ class AuroraDataProvider(DataProvider):
         seed=42
     ):
         self._data_path = data_path
-
+        self.valid_size =valid_size
+        self.test_size = test_size
+        self.seed = seed
         self.image_size = image_size  # int or list of int    
         self.distort_color = "None" if distort_color is None else distort_color
         self.resize_scale = resize_scale
@@ -228,11 +230,16 @@ class AuroraDataProvider(DataProvider):
             rand_indexes = torch.randperm(n_samples, generator=g).tolist()
             chosen_indexes = rand_indexes[:n_images]
 
-            new_train_dataset = self.train_dataset(
-                self.build_train_transform(
-                    image_size=self.active_img_size
-                )
+            train_transforms = self.build_train_transform(image_size=self.active_img_size)
+            new_train_dataset = AuroraDataset(
+                root=self.data_path,
+                transform=train_transforms,
+                split="train",
+                test_size=test_size,  # 20% of the data is used for testing
+                valid_size=self.valid_size,
+                random_seed=self.seed
             )
+            
             if num_replicas is not None:
                 sub_sampler = MyDistributedSampler(
                     new_train_dataset,

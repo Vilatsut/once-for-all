@@ -263,11 +263,11 @@ if __name__ == "__main__":
                 "https://raw.githubusercontent.com/han-cai/files/master/ofa/ofa_checkpoints/ofa_D4_E6_K7",
                 model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
             )
-            load_models(
-                distributed_run_manager,
-                distributed_run_manager.net,
-                args.ofa_checkpoint_path,
-            )
+            # load_models(
+            #     distributed_run_manager,
+            #     distributed_run_manager.net,
+            #     args.ofa_checkpoint_path,
+            # )
             distributed_run_manager.write_log(
                 "%.3f\t%.3f\t%.3f\t%s"
                 % validate(distributed_run_manager, is_test=True, **validate_func_dict),
