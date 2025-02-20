@@ -241,7 +241,7 @@ class DistributedRunManager:
         }
 
     def update_metric(self, metric_dict, output, labels):
-        acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+        acc1, acc5 = accuracy(output, labels, topk=(1, 1))
         metric_dict["top1"].update(acc1[0], output.size(0))
         metric_dict["top5"].update(acc5[0], output.size(0))
 
