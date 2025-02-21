@@ -207,25 +207,16 @@ if __name__ == "__main__":
         if len(args.width_mult_list) == 1
         else args.width_mult_list
     )
-    # net = OFAProxylessNASNets(
-    #     n_classes=run_config.data_provider.n_classes,
-    #     bn_param=(args.bn_momentum, args.bn_eps),
-    #     dropout_rate=args.dropout,
-    #     base_stage_width=args.base_stage_width,
-    #     width_mult=args.width_mult_list,
-    #     ks_list=args.ks_list,
-    #     expand_ratio_list=args.expand_list,
-    #     depth_list=args.depth_list,
-    # )
-    net = MobileNetV3Large(
-            n_classes=run_config.data_provider.n_classes,
-            bn_param=(args.bn_momentum, args.bn_eps),
-            dropout_rate=0,
-            width_mult=1.0,
-            ks=7,
-            expand_ratio=6,
-            depth_param=4,
-        )
+    net = OFAProxylessNASNets(
+        n_classes=run_config.data_provider.n_classes,
+        bn_param=(args.bn_momentum, args.bn_eps),
+        dropout_rate=args.dropout,
+        base_stage_width=args.base_stage_width,
+        width_mult=args.width_mult_list,
+        ks_list=args.ks_list,
+        expand_ratio_list=args.expand_list,
+        depth_list=args.depth_list,
+    )
     # teacher model
     if args.kd_ratio > 0:
         args.teacher_model = MobileNetV3Large(
