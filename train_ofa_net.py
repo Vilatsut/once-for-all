@@ -137,11 +137,11 @@ args.bn_eps = 1e-5
 args.dropout = 0.1
 args.base_stage_width = "proxyless"
 
-args.width_mult_list = "1.0"
+args.width_mult_list = "1.3"
 args.dy_conv_scaling_mode = 1
 args.independent_distributed_sampling = False
 
-args.kd_ratio = 1.0
+args.kd_ratio = 0
 args.kd_type = "ce"
 
 
@@ -219,14 +219,15 @@ if __name__ == "__main__":
     )
     # teacher model
     if args.kd_ratio > 0:
-        args.teacher_model = MobileNetV3Large(
+        args.teacher_model = OFAProxylessNASNets(
             n_classes=run_config.data_provider.n_classes,
             bn_param=(args.bn_momentum, args.bn_eps),
-            dropout_rate=0,
-            width_mult=1.0,
-            ks=7,
-            expand_ratio=6,
-            depth_param=4,
+            dropout_rate=0.0,
+            base_stage_width="proxyless",
+            width_mult=1.3,
+            ks_list=7,
+            expand_ratio_list=6,
+            depth_list=4,
         )
         args.teacher_model.cuda()
 
