@@ -298,15 +298,9 @@ if __name__ == "__main__":
         )
 
         if args.phase == 1:
-            args.ofa_checkpoint_path = download_url(
-                "https://raw.githubusercontent.com/han-cai/files/master/ofa/ofa_checkpoints/ofa_D4_E6_K357",
-                model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
-            )
+            args.ofa_checkpoint_path = "/scratch/project_2013176/output/normal2kernel/checkpoint/model_best.pth.tar"
         else:
-            args.ofa_checkpoint_path = download_url(
-                "https://raw.githubusercontent.com/han-cai/files/master/ofa/ofa_checkpoints/ofa_D34_E6_K357",
-                model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
-            )
+            args.ofa_checkpoint_path = "/scratch/project_2013176/output/kernel2kernel_depth/phase1/checkpoint/model_best.pth.tar"
         train_elastic_depth(train, distributed_run_manager, args, validate_func_dict)
     elif args.task == "expand":
         from ofa.imagenet_classification.elastic_nn.training.progressive_shrinking import (
@@ -314,15 +308,9 @@ if __name__ == "__main__":
         )
 
         if args.phase == 1:
-            args.ofa_checkpoint_path = download_url(
-                "https://raw.githubusercontent.com/han-cai/files/master/ofa/ofa_checkpoints/ofa_D234_E6_K357",
-                model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
-            )
+            args.ofa_checkpoint_path = "/scratch/project_2013176/output/kernel2kernel_depth/phase2/checkpoint/model_best.pth.tar"
         else:
-            args.ofa_checkpoint_path = download_url(
-                "https://raw.githubusercontent.com/han-cai/files/master/ofa/ofa_checkpoints/ofa_D234_E46_K357",
-                model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
-            )
+            args.ofa_checkpoint_path = "/scratch/project_2013176/output/kernel_depth2kernel_depth_expand/phase1/checkpoint/model_best.pth.tar"
         train_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
     elif args.task == "teacher":
         distributed_run_manager.write_log(
