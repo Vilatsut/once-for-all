@@ -269,15 +269,12 @@ if __name__ == "__main__":
     if args.task == "kernel":
         validate_func_dict["ks_list"] = sorted(args.ks_list)
         if distributed_run_manager.start_epoch == 0:
-            args.ofa_checkpoint_path = download_url(
-                "https://raw.githubusercontent.com/han-cai/files/master/ofa/ofa_checkpoints/ofa_D4_E6_K7",
-                model_dir=".torch/ofa_checkpoints/%d" % hvd.rank(),
+            args.ofa_checkpoint_path = "/scratch/project_2013176/output/teacher/checkpoint/model_best.pth.tar"
+            load_models(
+                distributed_run_manager,
+                distributed_run_manager.net,
+                args.ofa_checkpoint_path,
             )
-            # load_models(
-            #     distributed_run_manager,
-            #     distributed_run_manager.net,
-            #     args.ofa_checkpoint_path,
-            # )
             distributed_run_manager.write_log(
                 "%.3f\t%.3f\t%.3f\t%s"
                 % validate(distributed_run_manager, is_test=True, **validate_func_dict),
