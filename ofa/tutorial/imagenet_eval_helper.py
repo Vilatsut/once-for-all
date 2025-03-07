@@ -14,25 +14,20 @@ from ofa.imagenet_classification.elastic_nn.utils import set_running_statistics
 
 
 def evaluate_ofa_subnet(
-    ofa_net, path, net_config, data_loader, batch_size, device="cuda:0"
+    subnet, data_loader, batch_size, resolution, device="cuda:0"
 ):
-    assert "ks" in net_config and "d" in net_config and "e" in net_config
-    assert (
-        len(net_config["ks"]) == 20
-        and len(net_config["e"]) == 20
-        and len(net_config["d"]) == 5
-    )
-    ofa_net.set_active_subnet(ks=net_config["ks"], d=net_config["d"], e=net_config["e"])
-    subnet = ofa_net.get_active_subnet().to(device)
-    calib_bn(subnet, path, net_config["r"][0], batch_size)
-    top1 = validate(subnet, path, net_config["r"][0], data_loader, batch_size, device)
+    calib_bn(subnet, resolution, batch_size)
+    top1 = validate(subnet, data_loader)
     return top1
 
 
-def calib_bn(net, path, image_size, batch_size, num_images=2000):
+def calib_bn(net, image_size, batch_size, num_images=2000):
     # print('Creating dataloader for resetting BN running statistics...')
+    
+    dataset_mean = [0.23280394, 0.24616548, 0.26092353]
+    dataset_std = [0.16994016, 0.17286949, 0.16250615]
     dataset = datasets.ImageFolder(
-        osp.join(path, "train"),
+        "data",
         transforms.Compose(
             [
                 transforms.RandomResizedCrop(image_size),
@@ -40,7 +35,7 @@ def calib_bn(net, path, image_size, batch_size, num_images=2000):
                 transforms.ColorJitter(brightness=32.0 / 255.0, saturation=0.5),
                 transforms.ToTensor(),
                 transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                    mean=dataset_mean, std=dataset_std
                 ),
             ]
         ),
@@ -51,7 +46,7 @@ def calib_bn(net, path, image_size, batch_size, num_images=2000):
         dataset,
         sampler=sub_sampler,
         batch_size=batch_size,
-        num_workers=16,
+        num_workers=4,
         pin_memory=True,
         drop_last=False,
     )
@@ -59,20 +54,11 @@ def calib_bn(net, path, image_size, batch_size, num_images=2000):
     set_running_statistics(net, data_loader)
 
 
-def validate(net, path, image_size, data_loader, batch_size=100, device="cuda:0"):
+def validate(net, data_loader, device="cuda:0"):
     if "cuda" in device:
         net = torch.nn.DataParallel(net).to(device)
     else:
         net = net.to(device)
-
-    data_loader.dataset.transform = transforms.Compose(
-        [
-            transforms.Resize(int(math.ceil(image_size / 0.875))),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
 
     cudnn.benchmark = True
     criterion = nn.CrossEntropyLoss().to(device)
@@ -81,7 +67,6 @@ def validate(net, path, image_size, data_loader, batch_size=100, device="cuda:0"
     net = net.to(device)
     losses = AverageMeter()
     top1 = AverageMeter()
-    top5 = AverageMeter()
 
     with torch.no_grad():
         with tqdm(total=len(data_loader), desc="Validate") as t:
@@ -91,24 +76,22 @@ def validate(net, path, image_size, data_loader, batch_size=100, device="cuda:0"
                 output = net(images)
                 loss = criterion(output, labels)
                 # measure accuracy and record loss
-                acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+                acc1, acc5 = accuracy(output, labels, topk=(1, 1))
 
                 losses.update(loss.item(), images.size(0))
                 top1.update(acc1[0].item(), images.size(0))
-                top5.update(acc5[0].item(), images.size(0))
                 t.set_postfix(
                     {
                         "loss": losses.avg,
                         "top1": top1.avg,
-                        "top5": top5.avg,
                         "img_size": images.size(2),
                     }
                 )
                 t.update(1)
 
     print(
-        "Results: loss=%.5f,\t top1=%.1f,\t top5=%.1f"
-        % (losses.avg, top1.avg, top5.avg)
+        "Results: loss=%.5f,\t top1=%.1f"
+        % (losses.avg, top1.avg)
     )
     return top1.avg
 

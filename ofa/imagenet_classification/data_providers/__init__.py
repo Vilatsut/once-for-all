@@ -4,3 +4,4 @@
 
 from .imagenet import ImagenetDataProvider
 from .aurora import AuroraDataProvider, AuroraDataset
+from .base_provider import *

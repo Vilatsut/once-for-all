@@ -8,7 +8,7 @@ from .base_provider import DataProvider
 from ofa.utils.my_dataloader import MyRandomResizedCrop, MyDistributedSampler
 from ofa.utils.my_dataloader.my_data_loader import MyDataLoader
 
-__all__ = ["AuroraDataProvider"]
+__all__ = ["AuroraDataProvider", "AuroraDataset"]
 
 class AuroraDataProvider(DataProvider):
     DEFAULT_PATH = "/home/vilatsut/Desktop/archive"
@@ -20,7 +20,7 @@ class AuroraDataProvider(DataProvider):
         test_batch_size=256,
         valid_size=None,
         test_size=0.2,
-        n_worker=32,
+        n_worker=2,
         resize_scale=0.08,
         distort_color=None,
         image_size=224,
@@ -388,6 +388,26 @@ class AuroraDataset(datasets.VisionDataset):
             target = self.target_transform(target)
 
         return img, target
+    
+    def __get_items__(self, indices: List[int]) -> List[Tuple[Image.Image, int]]:
+        """
+        Returns a list of images and their labels for the given list of indices.
+        """
+        items = []
+        for index in indices:
+            img_path = self.data[index]
+            target = self.targets[index]
 
+            img = Image.open(img_path)
+
+            if self.transform:
+                img = self.transform(img)
+            if self.target_transform:
+                target = self.target_transform(target)
+
+            items.append((img, target))
+
+        return items
+    
     def __len__(self) -> int:
         return len(self.data)

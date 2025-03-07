@@ -14,7 +14,8 @@ import torch.multiprocessing as multiprocessing
 from torch._utils import ExceptionWrapper
 #from torch.multiprocessing import Queue as MultiProcessingQueue
 from queue import Empty
-from torch._six import string_classes
+from collections.abc import Iterable
+string_classes = (str, bytes)
 from torch.utils.data.dataset import IterableDataset
 from torch.utils.data import Sampler, SequentialSampler, RandomSampler, BatchSampler
 from torch.utils.data import _utils
