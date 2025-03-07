@@ -7,7 +7,7 @@ import random
 import numpy as np
 from ofa.imagenet_classification.networks import ResNets
 
-__all__ = ["MobileNetArchEncoder", "ResNetArchEncoder"]
+__all__ = ["MobileNetArchEncoder", "ResNetArchEncoder", "OFAProxylessNASNetsEncoder"]
 
 
 class MobileNetArchEncoder:
